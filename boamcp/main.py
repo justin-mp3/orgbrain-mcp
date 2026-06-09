@@ -6,7 +6,7 @@ from mcp.server.fastmcp import FastMCP
 CONTEXTS_FILE = "contexts.jsonl"
 
 port = int(os.environ.get("PORT", 8000))
-mcp = FastMCP("orgbrain", host="0.0.0.0", port=port)
+mcp = FastMCP("orgbrain", host="0.0.0.0", port=port, json_response=True)
 
 
 @mcp.tool()
