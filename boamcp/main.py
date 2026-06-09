@@ -2,9 +2,14 @@ import json
 import os
 from datetime import datetime, timezone
 from mcp.server.fastmcp import FastMCP
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.routing import Mount, Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-CONTEXTS_FILE = "contexts.jsonl"
+# Persist to a volume if mounted at /data, otherwise local (dev only)
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+CONTEXTS_FILE = os.path.join(DATA_DIR, "contexts.jsonl")
 
 port = int(os.environ.get("PORT", 8000))
 mcp = FastMCP("orgbrain", host="0.0.0.0", port=port, json_response=True)
@@ -13,6 +18,7 @@ mcp = FastMCP("orgbrain", host="0.0.0.0", port=port, json_response=True)
 @mcp.tool()
 def save_context(summary: str) -> str:
     """Save a conversation summary with a UTC timestamp to contexts.jsonl."""
+    os.makedirs(DATA_DIR, exist_ok=True)
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "summary": summary,
@@ -20,6 +26,16 @@ def save_context(summary: str) -> str:
     with open(CONTEXTS_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
     return "Saved."
+
+
+async def get_contexts(request):
+    """Return all saved contexts as JSON."""
+    try:
+        with open(CONTEXTS_FILE, encoding="utf-8") as f:
+            entries = [json.loads(line) for line in f if line.strip()]
+        return JSONResponse(entries)
+    except FileNotFoundError:
+        return JSONResponse([])
 
 
 class AcceptFixMiddleware:
@@ -50,7 +66,11 @@ class AcceptFixMiddleware:
         await self.app(scope, receive, send)
 
 
+app = Starlette(routes=[
+    Route("/contexts", get_contexts),
+    Mount("/", app=AcceptFixMiddleware(mcp.streamable_http_app())),
+])
+
 if __name__ == "__main__":
     import uvicorn
-    app = AcceptFixMiddleware(mcp.streamable_http_app())
     uvicorn.run(app, host="0.0.0.0", port=port)
