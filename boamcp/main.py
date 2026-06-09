@@ -11,7 +11,7 @@ DATA_DIR = os.environ.get("DATA_DIR", ".")
 CONTEXTS_FILE = os.path.join(DATA_DIR, "contexts.jsonl")
 
 port = int(os.environ.get("PORT", 8000))
-mcp = FastMCP("orgbrain", host="0.0.0.0", port=port, json_response=True)
+mcp = FastMCP("orgbrain", host="0.0.0.0", port=port, json_response=True, stateless_http=True)
 
 
 @mcp.tool()
