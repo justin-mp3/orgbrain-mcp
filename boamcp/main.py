@@ -5,7 +5,8 @@ from mcp.server.fastmcp import FastMCP
 
 CONTEXTS_FILE = "contexts.jsonl"
 
-mcp = FastMCP("orgbrain")
+port = int(os.environ.get("PORT", 8000))
+mcp = FastMCP("orgbrain", host="0.0.0.0", port=port)
 
 
 @mcp.tool()
@@ -21,7 +22,4 @@ def save_context(summary: str) -> str:
 
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    app = mcp.streamable_http_app()
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    mcp.run(transport="streamable-http")
