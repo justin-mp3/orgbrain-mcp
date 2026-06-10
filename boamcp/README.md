@@ -1,6 +1,6 @@
 # orgbrain-mcp
 
-A minimal remote MCP server with one tool: `save_context` — saves a conversation summary to a `contexts.jsonl` file with a UTC timestamp.
+Remote MCP server that logs steering events from Claude conversations — corrections, redirects, constraints, preferences, decisions, and approvals — with a viewer UI at `/`.
 
 ## Deploy to Railway
 
@@ -26,40 +26,47 @@ gh repo create orgbrain-mcp --public --source=. --push
 2. Go to **Settings → Networking → Generate Domain**.
 3. Copy the generated URL, e.g. `https://orgbrain-mcp-production.up.railway.app`.
 
-Your MCP endpoint will be:
-```
-https://<your-railway-domain>/mcp
-```
+Your MCP endpoint: `https://<your-railway-domain>/mcp`  
+Your events viewer: `https://<your-railway-domain>/`
+
+### 4. Persist events across deploys (optional but recommended)
+
+1. Railway dashboard → service → **Volumes** → **Add Volume**
+2. Mount path: `/data`
+3. **Variables** → add `DATA_DIR=/data`
 
 ---
 
 ## Add the MCP server to a Claude Project
 
-1. Open [claude.ai](https://claude.ai) and navigate to the Project you want to use.
-2. Click **Project Settings → Integrations → Add MCP Server**.
-3. Fill in:
+1. Open [claude.ai](https://claude.ai) → Project → **Settings → Integrations → Add MCP Server**
+2. Fill in:
    - **Name:** `orgbrain`
    - **URL:** `https://<your-railway-domain>/mcp`
    - **Transport:** Streamable HTTP
-4. Click **Save**.
-
-The `save_context` tool is now available to Claude inside that Project.
+3. Click **Save**.
 
 ---
 
 ## System prompt to paste into the Project
 
-Paste the following into your Project's **Custom Instructions** (system prompt) field:
-
 ```
-You have access to a memory tool called save_context.
+You have access to a tool called log_steering_event. Use it to record moments where the conversation changes direction, constraints are established, or key decisions are made.
 
-After every conversation — or whenever the user asks you to remember something — call save_context with a concise, factual summary of the key points discussed: decisions made, facts shared, tasks completed, or open questions.
+Call log_steering_event whenever:
+- The user corrects your approach or output → type: "correction"
+- The user redirects the conversation → type: "redirect"
+- A hard rule is established ("always", "never", "don't") → type: "constraint"
+- A preference is revealed about style, method, or format → type: "preference"
+- A key choice is made between options → type: "decision"
+- The user explicitly approves something → type: "approval"
 
-Format the summary in plain prose, 2-5 sentences. Do not include filler phrases like "the user said" — just the facts.
+Write the summary as a plain fact, 1-2 sentences. No filler phrases.
 
-Example call:
-save_context("Decided to use PostgreSQL for the project database. The schema has users, sessions, and events tables. Deployment target is Railway. Next step: write the migration scripts.")
+Examples:
+log_steering_event("constraint", "Never mock the database in tests — a prior incident where mock/prod divergence masked a broken migration.")
+log_steering_event("redirect", "Switched from building a REST API to a CLI tool after user clarified the use case.")
+log_steering_event("preference", "User prefers terse responses with no trailing summaries.")
 ```
 
 ---
@@ -73,7 +80,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Server starts at `http://localhost:8000/mcp`.
+Server starts at `http://localhost:8000`.
 
 Test with the MCP inspector:
 ```bash
